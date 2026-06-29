@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="biomethane-data.js"></script>
+<script src="geo-districts.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  .leaflet-container { font-family: 'Hanken Grotesk', sans-serif; background: #EAEEF3; }
+  .leaflet-control-zoom { margin: 14px !important; border-radius: 12px !important; overflow: hidden; }
+  .leaflet-control-zoom a { color: #2A3D8E; border-color: #ECEFF5; width: 32px; height: 32px; line-height: 32px; font-size: 17px; background: #FFFFFF; }
+  .leaflet-control-zoom a:hover { background: #F2F4FA; }
+  .leaflet-bar { box-shadow: 0 4px 14px rgba(20,30,60,.12); border: none; }
+  .leaflet-tooltip.bm-tt { background: #1C2438; color: #fff; border: none; box-shadow: 0 4px 14px rgba(20,30,60,.28); border-radius: 7px; font: 600 12px 'Hanken Grotesk'; padding: 5px 9px; }
+  .leaflet-tooltip.bm-tt::before { display: none; }
+  .bm-pin { transition: transform .12s ease; }
+  .bm-pin:hover { transform: translateY(-2px); z-index: 9999 !important; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  .bm-scroll::-webkit-scrollbar { width: 10px; }
+  .bm-scroll::-webkit-scrollbar-thumb { background: #DCE0EA; border-radius: 6px; border: 3px solid #FFFFFF; }
+  .bm-nav:hover { background: #F4F5FA !important; color: #3A4358 !important; }
+  .bm-soft:hover { color: #2A3D8E !important; }
+  @keyframes bmPulse { 0% { transform: scale(.4); opacity: .9; } 70% { opacity: 0; } 100% { transform: scale(2.4); opacity: 0; } }
+  @keyframes bmToastIn { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+</style>
+</helmet>
+<div style="height:100vh;width:100%;display:flex;background:#ECEFEF;font-family:'Hanken Grotesk',sans-serif;color:#1C2438;overflow:hidden;">
+
+  <!-- ================= SIDEBAR ================= -->
+  <nav style="flex:0 0 244px;background:#FFFFFF;border-right:1px solid #E7EAF0;display:flex;flex-direction:column;padding:22px 16px 18px;">
+    <div style="padding:4px 8px 22px;">
+      <div style="font:800 20px/1.12 'Hanken Grotesk';color:#2A3D8E;letter-spacing:-.3px;">Biomethane <span style="color:#15A9BC;">Potencial</span></div>
+      <div style="font:600 9.5px 'Hanken Grotesk';color:#A4ABBC;letter-spacing:1.4px;margin-top:6px;">2026</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px;">
+      <button class="bm-nav" onClick="{{ nav.heatmap.onClick }}" style="{{ nav.heatmap.style }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><polygon points="3 7 9 4 15 7 21 4 21 17 15 20 9 17 3 20"/><path d="M9 4v13M15 7v13"/></svg>
+        Heatmap Simulator
+      </button>
+      <button class="bm-nav" onClick="{{ nav.feedstock.onClick }}" style="{{ nav.feedstock.style }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V11"/><path d="M12 12C12 8 9 4 4 4c0 5 3 8 8 8z"/><path d="M12 13c0-3.5 3-7 8-7 0 4-3 7-8 7z"/></svg>
+        Feedstock Analysis
+      </button>
+      <button class="bm-nav" onClick="{{ nav.regional.onClick }}" style="{{ nav.regional.style }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+        Regional Insights
+      </button>
+    </div>
+
+    <div style="flex:1 1 auto;"></div>
+
+    <button onClick="{{ onExport }}" style="display:flex;align-items:center;justify-content:center;gap:9px;width:100%;border:none;border-radius:12px;padding:14px;margin-bottom:16px;background:#2A3D8E;color:#fff;font:700 13px 'Hanken Grotesk';letter-spacing:.6px;cursor:pointer;box-shadow:0 8px 20px rgba(42,61,142,.26);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
+      EXPORT DATA
+    </button>
+
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid #EEF0F5;padding-top:12px;">
+      <button class="bm-soft" onClick="{{ onSoon }}" style="display:flex;align-items:center;gap:10px;border:none;background:none;cursor:pointer;padding:8px;font:600 12.5px 'Hanken Grotesk';color:#9098AC;text-align:left;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.2 2.5c-.7.3-1.3.9-1.3 1.8" stroke-linecap="round"/><circle cx="12" cy="16.8" r=".7" fill="currentColor" stroke="none"/></svg>
+        Help Center
+      </button>
+      <button class="bm-soft" onClick="{{ onSoon }}" style="display:flex;align-items:center;gap:10px;border:none;background:none;cursor:pointer;padding:8px;font:600 12.5px 'Hanken Grotesk';color:#9098AC;text-align:left;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+        Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= MAIN ================= -->
+  <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;">
+
+    <!-- header -->
+    <header style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:15px 26px;background:#FFFFFF;border-bottom:1px solid #E7EAF0;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(150deg,#33449A,#21306F);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Hanken Grotesk';box-shadow:0 6px 16px rgba(33,48,111,.28);">CH₄</div>
+        <div>
+          <div style="font:700 19px/1.05 'Hanken Grotesk';color:#1C2438;letter-spacing:-.3px;">Potencial de Biometano</div>
+          <div style="display:flex;align-items:center;gap:6px;font:500 12.5px 'Hanken Grotesk';color:#8A93A6;margin-top:3px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.2"/></svg>
+            Portugal continental · potencial por distrito
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:stretch;">
+        <div style="padding:2px 24px;display:flex;flex-direction:column;justify-content:center;">
+          <div style="font:600 10px 'Hanken Grotesk';color:#9098AC;text-transform:uppercase;letter-spacing:.9px;">Potencial total</div>
+          <div style="font:600 24px/1 'IBM Plex Mono';color:{{ accent }};margin-top:6px;">{{ kpiTotal }}<span style="font:600 11px 'Hanken Grotesk';color:#A4ABBC;margin-left:5px;">GWh/ano</span></div>
+        </div>
+        <div style="padding:2px 24px;display:flex;flex-direction:column;justify-content:center;border-left:1px solid #E7EAF0;">
+          <div style="font:600 10px 'Hanken Grotesk';color:#9098AC;text-transform:uppercase;letter-spacing:.9px;">Distritos ativos</div>
+          <div style="font:600 24px/1 'IBM Plex Mono';color:#1C2438;margin-top:6px;">{{ kpiWith }}<span style="font:600 11px 'Hanken Grotesk';color:#A4ABBC;margin-left:4px;">/ 18</span></div>
+        </div>
+        <div style="padding:2px 24px;display:flex;flex-direction:column;justify-content:center;border-left:1px solid #E7EAF0;">
+          <div style="font:600 10px 'Hanken Grotesk';color:#9098AC;text-transform:uppercase;letter-spacing:.9px;">Distrito líder</div>
+          <div style="font:700 17px/1.05 'Hanken Grotesk';color:#1C2438;margin-top:5px;">{{ kpiLeader }} <span style="font:600 13px 'IBM Plex Mono';color:{{ accent }};">{{ kpiLeaderVal }}</span></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- content -->
+    <div style="flex:1 1 auto;min-height:0;display:flex;">
+
+      <!-- MAP AREA -->
+      <div style="position:relative;flex:1 1 auto;min-width:0;padding:20px;">
+        <div style="position:absolute;inset:20px;border-radius:18px;overflow:hidden;border:1px solid #E1E5EE;box-shadow:0 10px 30px rgba(20,30,60,.08);background:#EAEEF3;">
+          <div ref="{{ mapRef }}" style="position:absolute;inset:0;"></div>
+        </div>
+
+        <!-- breadcrumb (only when a district is selected) -->
+        <sc-if value="{{ selected }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:32px;left:62px;z-index:600;display:flex;align-items:center;gap:8px;background:#FFFFFF;border:1px solid #E7EAF0;border-radius:11px;padding:6px 12px 6px 7px;box-shadow:0 4px 14px rgba(20,30,60,.12);">
+            <button onClick="{{ deselect }}" style="display:flex;align-items:center;gap:6px;border:none;background:#F1F3F9;color:#2A3D8E;border-radius:8px;padding:5px 10px 5px 7px;cursor:pointer;font:600 12.5px 'Hanken Grotesk';">
+              <span style="font-size:15px;line-height:1;">←</span> Portugal
+            </button>
+            <div style="font:600 13px 'Hanken Grotesk';color:#1C2438;display:flex;align-items:center;gap:7px;padding-right:4px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:{{ accent }};"></span>{{ selected }}
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- legend -->
+        <div style="position:absolute;left:34px;bottom:34px;z-index:600;background:#FFFFFF;border:1px solid #E7EAF0;border-radius:14px;padding:14px 16px;box-shadow:0 8px 24px rgba(20,30,60,.12);width:262px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+            <div style="font:700 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.8px;">Escala de potencial</div>
+            <div style="font:600 10px 'IBM Plex Mono';color:#A4ABBC;">GWh/ano</div>
+          </div>
+          <div style="height:12px;border-radius:7px;background:{{ legendGradient }};"></div>
+          <div style="display:flex;justify-content:space-between;font:600 10.5px 'IBM Plex Mono';color:#8A93A6;margin-top:7px;"><span>0</span><span>médio</span><span>{{ legendMax }}+</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:11px;border-top:1px solid #EEF0F5;">
+            <div style="display:flex;align-items:center;gap:8px;font:600 11.5px 'Hanken Grotesk';color:#717A8C;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h13a4 4 0 0 1 0 8H7"/><path d="M3 12h17a4 4 0 0 1 0 8H9"/></svg>
+              Mapa base
+            </div>
+            <button onClick="{{ onToggleBasemap }}" style="{{ basemapTrackStyle }}"><span style="{{ basemapKnobStyle }}"></span></button>
+          </div>
+        </div>
+
+        <!-- floating add-data FAB -->
+        <button onClick="{{ onAddShortcut }}" title="Adicionar dados" style="{{ fabStyle }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <aside ref="{{ panelRef }}" class="bm-scroll" style="position:relative;flex:0 0 392px;background:#FFFFFF;border-left:1px solid #E7EAF0;overflow-y:auto;">
+
+        <!-- feedstock origin / filter -->
+        <section style="padding:20px 20px 16px;border-bottom:1px solid #EEF0F5;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
+            <div style="font:700 11px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.9px;">Origem do feedstock{{ feedScope }}</div>
+            <button onClick="{{ onResetFilter }}" style="{{ filterLinkStyle }}">{{ filterLinkLabel }}</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <!-- RSU -->
+            <button onClick="{{ cards.rsu.onClick }}" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;border:1px solid #ECEFF4;background:#FFFFFF;border-radius:14px;padding:13px 14px;cursor:pointer;transition:all .12s;{{ cards.rsu.activeCss }}">
+              <span style="width:40px;height:40px;border-radius:11px;background:#EEF1FB;color:#3D5AC2;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+              </span>
+              <span style="flex:1 1 auto;min-width:0;">
+                <span style="display:block;font:700 14px 'Hanken Grotesk';color:#1C2438;">RSU</span>
+                <span style="display:block;font:500 11.5px 'Hanken Grotesk';color:#9098AC;margin-top:1px;">Resíduos Orgânicos</span>
+              </span>
+              <span style="text-align:right;flex:0 0 auto;">
+                <span style="display:block;font:600 17px/1 'IBM Plex Mono';color:#3D5AC2;">{{ cards.rsu.val }}</span>
+                <span style="display:block;font:600 9.5px 'Hanken Grotesk';color:#A4ABBC;letter-spacing:.5px;margin-top:3px;">GWh</span>
+              </span>
+            </button>
+            <!-- Agro -->
+            <button onClick="{{ cards.agro.onClick }}" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;border:1px solid #ECEFF4;background:#FFFFFF;border-radius:14px;padding:13px 14px;cursor:pointer;transition:all .12s;{{ cards.agro.activeCss }}">
+              <span style="width:40px;height:40px;border-radius:11px;background:#FFF3E6;color:#E0832F;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 12C12 8 9 4.5 4.5 4.5c0 4.5 3 7.5 7.5 7.5z"/><path d="M12 13c0-3.2 3-6.5 7.5-6.5 0 3.7-3 6.5-7.5 6.5z"/></svg>
+              </span>
+              <span style="flex:1 1 auto;min-width:0;">
+                <span style="display:block;font:700 14px 'Hanken Grotesk';color:#1C2438;">Agropecuário</span>
+                <span style="display:block;font:500 11.5px 'Hanken Grotesk';color:#9098AC;margin-top:1px;">Agrícola e Florestal</span>
+              </span>
+              <span style="text-align:right;flex:0 0 auto;">
+                <span style="display:block;font:600 17px/1 'IBM Plex Mono';color:#E0832F;">{{ cards.agro.val }}</span>
+                <span style="display:block;font:600 9.5px 'Hanken Grotesk';color:#A4ABBC;letter-spacing:.5px;margin-top:3px;">GWh</span>
+              </span>
+            </button>
+            <!-- ETAR -->
+            <button onClick="{{ cards.etar.onClick }}" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;border:1px solid #ECEFF4;background:#FFFFFF;border-radius:14px;padding:13px 14px;cursor:pointer;transition:all .12s;{{ cards.etar.activeCss }}">
+              <span style="width:40px;height:40px;border-radius:11px;background:#E7F6F0;color:#1F9D78;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6.5 6.6 6.5 11.2A6.5 6.5 0 0 1 5.5 14.2C5.5 9.6 12 3 12 3z"/></svg>
+              </span>
+              <span style="flex:1 1 auto;min-width:0;">
+                <span style="display:block;font:700 14px 'Hanken Grotesk';color:#1C2438;">ETAR</span>
+                <span style="display:block;font:500 11.5px 'Hanken Grotesk';color:#9098AC;margin-top:1px;">Águas Residuais</span>
+              </span>
+              <span style="text-align:right;flex:0 0 auto;">
+                <span style="display:block;font:600 17px/1 'IBM Plex Mono';color:#1F9D78;">{{ cards.etar.val }}</span>
+                <span style="display:block;font:600 9.5px 'Hanken Grotesk';color:#A4ABBC;letter-spacing:.5px;margin-top:3px;">GWh</span>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <!-- composição nacional (no selection) -->
+        <sc-if value="{{ notSelected }}" hint-placeholder-val="{{ true }}">
+          <section style="padding:18px 20px;border-bottom:1px solid #EEF0F5;">
+            <div style="font:700 11px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.9px;margin-bottom:15px;">Composição nacional</div>
+            <div style="display:flex;flex-direction:column;gap:15px;">
+              <sc-for list="{{ overviewAxes }}" as="a" hint-placeholder-count="3">
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+                    <span style="font:600 12px 'Hanken Grotesk';color:#4A5468;text-transform:uppercase;letter-spacing:.3px;">{{ a.comp }}</span>
+                    <span style="font:700 12.5px 'IBM Plex Mono';color:{{ a.color }};">{{ a.pct }}%</span>
+                  </div>
+                  <div style="height:8px;border-radius:5px;background:#EEF1F5;overflow:hidden;"><div style="{{ a.barStyle }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <!-- district detail (selected) -->
+        <sc-if value="{{ selected }}" hint-placeholder-val="{{ false }}">
+          <section style="padding:18px 20px;border-bottom:1px solid #EEF0F5;">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+              <div>
+                <div style="font:500 10.5px 'Hanken Grotesk';color:#A4ABBC;text-transform:uppercase;letter-spacing:.8px;">{{ selRegion }}</div>
+                <div style="font:800 22px/1 'Hanken Grotesk';color:#1C2438;letter-spacing:-.4px;margin-top:3px;">{{ selected }}</div>
+              </div>
+              <div style="font:600 21px 'IBM Plex Mono';color:{{ accent }};white-space:nowrap;">{{ selTotal }}<span style="font:600 10.5px 'Hanken Grotesk';color:#A4ABBC;margin-left:4px;">GWh/ano</span></div>
+            </div>
+            <div style="font:600 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.7px;margin:16px 0 9px;">Registos · {{ selCount }}</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ selRecords }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:11px;padding:9px 11px;background:{{ r.bg }};border:1px solid {{ r.border }};border-radius:11px;">
+                  <span style="width:7px;height:26px;border-radius:4px;background:{{ r.color }};flex:0 0 auto;"></span>
+                  <div style="flex:1 1 auto;min-width:0;">
+                    <div style="font:600 12.5px 'Hanken Grotesk';color:#1C2438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.local }}</div>
+                    <div style="font:500 11px 'Hanken Grotesk';color:#9098AC;">{{ r.meta }}</div>
+                  </div>
+                  <span style="font:600 12.5px 'IBM Plex Mono';color:#1C2438;white-space:nowrap;">{{ r.val }}</span>
+                  <sc-if value="{{ r.isUser }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ r.onRemove }}" title="Remover" style="border:none;background:none;color:#C0564C;cursor:pointer;font-size:17px;line-height:1;padding:2px 4px;">×</button>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <!-- ranking -->
+        <section style="padding:18px 20px;border-bottom:1px solid #EEF0F5;">
+          <div style="font:700 11px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.9px;margin-bottom:13px;">Ranking por distrito</div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <sc-for list="{{ ranking }}" as="d" hint-placeholder-count="7">
+              <button onClick="{{ d.onClick }}" style="{{ d.rowStyle }}">
+                <span style="font:600 11.5px 'IBM Plex Mono';color:#B3BAC8;width:18px;text-align:right;flex:0 0 auto;">{{ d.rank }}</span>
+                <span style="font:600 12.5px 'Hanken Grotesk';color:#1C2438;width:98px;flex:0 0 auto;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ d.name }}</span>
+                <span style="flex:1 1 auto;height:8px;border-radius:5px;background:#EEF1F5;overflow:hidden;"><span style="{{ d.barStyle }}"></span></span>
+                <span style="font:600 12px 'IBM Plex Mono';color:#1C2438;width:48px;text-align:right;flex:0 0 auto;">{{ d.val }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="font:500 11px 'Hanken Grotesk';color:#B3BAC8;margin-top:11px;">{{ rankingFoot }}</div>
+        </section>
+
+        <!-- add data form -->
+        <section ref="{{ formRef }}" style="padding:19px 20px 22px;background:#F8F9FC;">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px;">
+            <div style="font:700 14px 'Hanken Grotesk';color:#1C2438;">Adicionar dados</div>
+            <span style="font:700 9px 'Hanken Grotesk';color:#15A9BC;background:#E2F5F7;border-radius:20px;padding:3px 9px;letter-spacing:.4px;">SIMULADOR BioCH₄</span>
+          </div>
+          <div style="font:500 11.5px 'Hanken Grotesk';color:#9098AC;margin-bottom:15px;">Escolha o feedstock e a quantidade; o potencial em GWh/ano é convertido e somado ao mapa.</div>
+
+          <label style="display:block;font:600 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Distrito</label>
+          <select onChange="{{ onPickDistrito }}" value="{{ formDistrito }}" style="width:100%;appearance:none;background:#FFFFFF url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M2 4l4 4 4-4%22 fill=%22none%22 stroke=%22%23717A8C%22 stroke-width=%221.6%22/></svg>') no-repeat right 13px center;border:1px solid #DDE2EC;border-radius:11px;padding:12px 34px 12px 14px;font:600 13px 'Hanken Grotesk';color:#1C2438;cursor:pointer;margin-bottom:14px;">
+            <option value="" disabled>Selecionar distrito…</option>
+            <sc-for list="{{ districtOptions }}" as="o" hint-placeholder-count="6">
+              <option value="{{ o.name }}">{{ o.name }}</option>
+            </sc-for>
+          </select>
+
+          <label style="display:block;font:600 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Tipo de feedstock</label>
+          <select onChange="{{ onPickFeedstock }}" value="{{ formFeedstock }}" style="width:100%;appearance:none;background:#FFFFFF url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M2 4l4 4 4-4%22 fill=%22none%22 stroke=%22%23717A8C%22 stroke-width=%221.6%22/></svg>') no-repeat right 13px center;border:1px solid #DDE2EC;border-radius:11px;padding:12px 34px 12px 14px;font:600 13px 'Hanken Grotesk';color:#1C2438;cursor:pointer;margin-bottom:12px;">
+            <sc-for list="{{ feedstockGroups }}" as="g" hint-placeholder-count="5">
+              <optgroup label="{{ g.label }}">
+                <sc-for list="{{ g.items }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.id }}">{{ o.label }}</option>
+                </sc-for>
+              </optgroup>
+            </sc-for>
+          </select>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="font:500 11px 'Hanken Grotesk';color:#9098AC;">Eixo no mapa</span>
+            <span style="{{ fsAxisChipStyle }}"><span style="{{ fsAxisDotStyle }}"></span>{{ fsAxisLabel }}</span>
+          </div>
+
+          <label style="display:flex;justify-content:space-between;align-items:baseline;font:600 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;"><span>Quantidade de feedstock</span><span style="color:#B3BAC8;text-transform:none;letter-spacing:0;font-size:11px;">{{ formUnit }}</span></label>
+          <input type="number" min="0" step="{{ formStep }}" value="{{ formTons }}" placeholder="{{ formPh }}" onChange="{{ onTonsInput }}" onInput="{{ onTonsInput }}" style="width:100%;border:1px solid #DDE2EC;border-radius:11px;padding:12px 14px;font:600 15px 'IBM Plex Mono';color:#1C2438;background:#FFFFFF;" />
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:15px;padding:13px 15px;background:#FFFFFF;border:1px dashed #C8D0E0;border-radius:12px;">
+            <div style="min-width:0;">
+              <div style="font:600 10px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.6px;">Potencial estimado</div>
+              <div style="font:500 10.5px 'Hanken Grotesk';color:#A4ABBC;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ formFactorNote }}</div>
+            </div>
+            <div style="font:600 21px 'IBM Plex Mono';color:{{ formPreviewColor }};white-space:nowrap;">≈ {{ formPreview }}<span style="font:600 10.5px 'Hanken Grotesk';color:#A4ABBC;margin-left:4px;">GWh/ano</span></div>
+          </div>
+
+          <button onClick="{{ submitForm }}" style="{{ submitStyle }}">{{ submitLabel }}</button>
+          <sc-if value="{{ hasUserData }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ resetUserData }}" style="width:100%;margin-top:9px;border:none;background:none;color:#9098AC;font:600 12px 'Hanken Grotesk';cursor:pointer;padding:4px;">Repor apenas dados de base</button>
+          </sc-if>
+        </section>
+
+        <div style="padding:14px 20px;font:500 10.5px/1.6 'Hanken Grotesk';color:#B3BAC8;">
+          Mapa: dados Floene (INE, GPP, APA RARU, SRIR, ERSAR, Águas de Portugal). Conversão de novas entradas pelo Simulador BioCH₄: t/ano → biogás → biometano (CH₄ × 9,97 kWh/m³). Atualizado {{ updated }}.
+        </div>
+      </aside>
+    </div>
+
+    <!-- footer -->
+    <footer style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 26px;background:#FFFFFF;border-top:1px solid #E7EAF0;">
+      <div style="font:600 10.5px 'Hanken Grotesk';color:#A4ABBC;letter-spacing:.4px;">© 2024 FLOENE. DISTRIBUIÇÃO DE ENERGIAS DE FUTURO. TODOS OS DIREITOS RESERVADOS.</div>
+      <div style="display:flex;align-items:center;gap:22px;">
+        <span class="bm-soft" style="font:600 11px 'Hanken Grotesk';color:#9098AC;cursor:pointer;">Privacidade</span>
+        <span class="bm-soft" style="font:600 11px 'Hanken Grotesk';color:#9098AC;cursor:pointer;">Termos de Uso</span>
+        <span class="bm-soft" style="font:600 11px 'Hanken Grotesk';color:#9098AC;cursor:pointer;">Cookies</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- toast -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:30px;z-index:9000;transform:translateX(-50%);background:#1C2438;color:#fff;padding:13px 20px;border-radius:13px;box-shadow:0 14px 38px rgba(20,30,60,.34);font:600 13.5px 'Hanken Grotesk';display:flex;align-items:center;gap:11px;animation:bmToastIn .26s ease;">
+      <span style="width:22px;height:22px;border-radius:50%;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 auto;">✓</span>
+      {{ toast }}
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;paleta&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Verde (YlGn)&quot;,&quot;options&quot;:[&quot;Verde (YlGn)&quot;,&quot;Azul-verde&quot;,&quot;Quente&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Aparência&quot;},&quot;acento&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#15A9BC&quot;,&quot;options&quot;:[&quot;#15A9BC&quot;,&quot;#2A3D8E&quot;,&quot;#1F9D78&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Aparência&quot;},&quot;mapaBase&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Aparência&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      sources: [],
+      activeAxes: { RSU: true, AGRO: true, ETAR: true },
+      selected: null,
+      showBasemap: false,
+      form: { distrito: '', feedstock: 'ofmsw', tons: '' },
+      toast: null,
+      ready: false
+    };
+    this.mapRef = this.mapRef.bind(this);
+    this.panelRef = (el) => { this._panelEl = el; };
+    this.formRef = (el) => { this._formEl = el; };
+    this._mapEl = null;
+    this.featureByName = {};
+    this._toastT = null;
+  }
+
+  // ---------- theme ----------
+  accent() { return this.props.acento || '#15A9BC'; }
+  accentPair() {
+    var m = { '#15A9BC': ['#15A9BC', '#22C7D6'], '#2A3D8E': ['#2A3D8E', '#3D54B5'], '#1F9D78': ['#1F9D78', '#2BBE93'] };
+    return m[this.accent()] || ['#15A9BC', '#22C7D6'];
+  }
+
+  // ---------- formatting ----------
+  fmt(n, d) { return new Intl.NumberFormat('pt-PT', { minimumFractionDigits: d, maximumFractionDigits: d }).format(n || 0); }
+  fmtInt(n) { return new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 0 }).format(n || 0); }
+  gwhLabel(v) { return v >= 10 ? this.fmt(v, 1) : this.fmt(v, 2); }
+
+  rampFor() {
+    var p = this.props.paleta;
+    if (p === 'Azul-verde') return ['#f7fcf0', '#ccebc5', '#7bccc4', '#43a2ca', '#2b8cbe', '#0868ac'];
+    if (p === 'Quente') return ['#ffffcc', '#fed976', '#feb24c', '#fd8d3c', '#f03b20', '#bd0026'];
+    return ['#ffffe5', '#d9f0a3', '#78c679', '#41ab5d', '#238443', '#005a32'];
+  }
+
+  // ---------- lifecycle ----------
+  componentDidMount() {
+    var BIO = window.BIO;
+    var saved = [];
+    try { saved = JSON.parse(localStorage.getItem('biometano_user_sources_v2') || '[]'); } catch (e) {}
+    if (!saved.length) {
+      try {
+        var legacy = JSON.parse(localStorage.getItem('biometano_user_sources_v1') || '[]');
+        saved = legacy.map(function (s) { return { id: s.id, distrito: s.distrito, axis: s.axis, inputs: s.inputs, local: s.local }; });
+      } catch (e) {}
+    }
+    var seed = (BIO ? BIO.SOURCES : []).slice();
+    var restored = saved.map(function (s) {
+      if (s.feedstock && BIO) {
+        var f = BIO.feedstockById(s.feedstock);
+        return { id: s.id, origin: 'user', distrito: s.distrito, feedstock: s.feedstock,
+          axis: f ? f.axis : 'RSU', tons: s.tons, local: s.local || (f ? f.label : 'Entrada'),
+          fonte: 'Introduzido', gwh: BIO.feedstockGwh(s.feedstock, s.tons) };
+      }
+      return Object.assign({}, s, { gwh: BIO.gwhOf(s.axis, s.inputs || {}), origin: 'user', fonte: s.fonte || 'Introduzido', local: s.local || ('Entrada · ' + s.distrito) });
+    });
+    this.setState({ sources: seed.concat(restored), showBasemap: !!this.props.mapaBase, ready: true });
+    this._poll = setInterval(() => {
+      if (window.L && window.BIO && window.PT_DISTRICTS_GEOJSON && this._mapEl && !this.map) {
+        clearInterval(this._poll);
+        this.initMap();
+      }
+    }, 60);
+  }
+  componentWillUnmount() { clearInterval(this._poll); if (this._toastT) clearTimeout(this._toastT); if (this._ro) this._ro.disconnect(); }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps.paleta !== this.props.paleta) this.applyData();
+    if (prevProps.mapaBase !== this.props.mapaBase) this.setState({ showBasemap: !!this.props.mapaBase });
+    if (prevState.showBasemap !== this.state.showBasemap) this.syncBasemap();
+    if (prevState.sources !== this.state.sources || prevState.activeAxes !== this.state.activeAxes) this.applyData();
+  }
+
+  mapRef(el) { this._mapEl = el; }
+
+  // ---------- map ----------
+  initMap() {
+    var L = window.L;
+    var map = L.map(this._mapEl, { zoomControl: true, attributionControl: false, minZoom: 4, maxZoom: 12, zoomSnap: 0.25, zoomDelta: 0.5 });
+    this.map = map;
+    this.pinLayer = L.layerGroup().addTo(map);
+    this.flashLayer = L.layerGroup().addTo(map);
+    this.syncBasemap();
+
+    this.geoLayer = L.geoJSON(window.PT_DISTRICTS_GEOJSON, {
+      style: (f) => this.featureStyle(f.properties.name),
+      onEachFeature: (f, layer) => {
+        var name = f.properties.name;
+        this.featureByName[name] = layer;
+        layer.on({
+          mouseover: () => { if (this.state.selected !== name) { layer.setStyle({ weight: 2.4, color: '#1C2438' }); layer.bringToFront(); } },
+          mouseout: () => { this.geoLayer.resetStyle(layer); if (this.state.selected) this.rehighlight(); },
+          click: () => this.selectDistrict(name === this.state.selected ? null : name, { zoom: true })
+        });
+        layer.bindTooltip(name, { sticky: true, direction: 'top', opacity: 1, className: 'bm-tt' });
+      }
+    }).addTo(map);
+
+    this.ptBounds = this.geoLayer.getBounds();
+    this.applyData();
+    setTimeout(() => { map.invalidateSize(); this.fitPT(); }, 90);
+    // re-fit on container resize so the country always fills the frame.
+    // Defer with rAF + a guard so we never resize synchronously inside the
+    // observer callback (which trips the "ResizeObserver loop" error).
+    if (window.ResizeObserver && !this._ro) {
+      this._ro = new ResizeObserver(() => {
+        if (this._roPending) return;
+        this._roPending = true;
+        requestAnimationFrame(() => {
+          this._roPending = false;
+          if (!this.map) return;
+          this.map.invalidateSize();
+          if (!this.state.selected) this.fitPT();
+        });
+      });
+      this._ro.observe(this._mapEl);
+    }
+  }
+
+  syncBasemap() {
+    if (!this.map) return;
+    var L = window.L;
+    if (this.state.showBasemap) {
+      if (!this.tileLayer) {
+        this.tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19, opacity: .92 });
+      }
+      this.tileLayer.addTo(this.map);
+      if (this.geoLayer) this.geoLayer.bringToFront();
+      if (this.pinLayer) this.pinLayer.bringToFront();
+    } else if (this.tileLayer) {
+      this.map.removeLayer(this.tileLayer);
+    }
+  }
+
+  fitPT() { if (this.map && this.ptBounds) this.map.fitBounds(this.ptBounds, { paddingTopLeft: [18, 18], paddingBottomRight: [18, 70] }); }
+
+  agg() {
+    var st = this.state, by = {};
+    window.BIO.DISTRICTS.forEach(function (d) { by[d] = { total: 0, byAxis: { RSU: 0, AGRO: 0, ETAR: 0 }, records: [] }; });
+    st.sources.forEach(function (s) {
+      if (!st.activeAxes[s.axis] || !by[s.distrito]) return;
+      by[s.distrito].byAxis[s.axis] += s.gwh;
+      by[s.distrito].total += s.gwh;
+      by[s.distrito].records.push(s);
+    });
+    var max = 0, total = 0, withData = 0, axisTot = { RSU: 0, AGRO: 0, ETAR: 0 }, leader = null, leaderVal = 0;
+    Object.keys(by).forEach(function (d) {
+      var o = by[d];
+      if (o.total > 0) { withData++; total += o.total; if (o.total > max) max = o.total; if (o.total > leaderVal) { leaderVal = o.total; leader = d; } }
+      axisTot.RSU += o.byAxis.RSU; axisTot.AGRO += o.byAxis.AGRO; axisTot.ETAR += o.byAxis.ETAR;
+    });
+    return { by: by, max: max, total: total, withData: withData, axisTot: axisTot, leader: leader, leaderVal: leaderVal };
+  }
+
+  colorFor(v, max, ramp) {
+    if (v <= 0) return null;
+    if (max <= 0) return ramp[1];
+    var t = Math.sqrt(v / max);
+    var idx = 1 + Math.floor(t * (ramp.length - 1));
+    if (idx > ramp.length - 1) idx = ramp.length - 1;
+    return ramp[idx];
+  }
+
+  featureStyle(name) {
+    var a = this._agg || this.agg();
+    var ramp = this.rampFor();
+    var v = a.by[name] ? a.by[name].total : 0;
+    var c = this.colorFor(v, a.max, ramp);
+    var sel = this.state.selected === name;
+    if (c === null) return { fillColor: '#E4E8EE', fillOpacity: 1, color: '#D2D8E2', weight: 1, dashArray: '2,3' };
+    return { fillColor: c, fillOpacity: sel ? 1 : .92, color: sel ? '#1C2438' : '#FFFFFF', weight: sel ? 2.6 : 1, dashArray: null };
+  }
+
+  rehighlight() {
+    var l = this.featureByName[this.state.selected];
+    if (l) { l.setStyle(this.featureStyle(this.state.selected)); l.bringToFront(); }
+  }
+
+  applyData() {
+    if (!this.geoLayer) return;
+    this._agg = this.agg();
+    this.geoLayer.setStyle((f) => this.featureStyle(f.properties.name));
+    if (this.state.selected) { this.rehighlight(); this.renderPins(this.state.selected); }
+  }
+
+  selectDistrict(name, opts) {
+    opts = opts || {};
+    this.setState({ selected: name }, () => {
+      this.geoLayer.setStyle((f) => this.featureStyle(f.properties.name));
+      if (!name) { this.pinLayer.clearLayers(); this.flashLayer.clearLayers(); this.fitPT(); return; }
+      var l = this.featureByName[name];
+      if (l) { if (opts.zoom) this.map.fitBounds(l.getBounds(), { padding: [60, 60], maxZoom: 11 }); l.bringToFront(); this.rehighlight(); }
+      this.renderPins(name, opts.flash);
+    });
+  }
+
+  renderPins(name, flashAxis) {
+    if (!this.pinLayer) return;
+    this.pinLayer.clearLayers();
+    var L = window.L, a = this._agg || this.agg();
+    var c = window.BIO.CENTROID[name]; if (!c) return;
+    var center = [c[1], c[0]];
+    var present = window.BIO.AXIS_ORDER.filter((ax) => this.state.activeAxes[ax] && a.by[name] && a.by[name].byAxis[ax] > 0);
+    var k = present.length;
+    present.forEach((ax, i) => {
+      var meta = window.BIO.AXES[ax];
+      var val = a.by[name].byAxis[ax];
+      var off = (i - (k - 1) / 2) * 96;
+      var isFlash = flashAxis === ax;
+      var html =
+        '<div class="bm-pin" style="position:absolute;left:0;top:0;transform:translate(calc(-50% + ' + off + 'px), calc(-100% - 8px));">' +
+          '<div style="display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #E7EAF0;border-left:4px solid ' + meta.color + ';border-radius:10px;padding:6px 10px;box-shadow:0 5px 16px rgba(20,30,60,.20);white-space:nowrap;' + (isFlash ? 'outline:2px solid ' + meta.color + ';' : '') + '">' +
+            '<span style="font:700 11px \'Hanken Grotesk\';color:' + meta.color + ';">' + meta.short + '</span>' +
+            '<span style="font:600 13px \'IBM Plex Mono\';color:#1C2438;">' + this.gwhLabel(val) + '</span>' +
+            '<span style="font:600 10px \'Hanken Grotesk\';color:#9098AC;">GWh/a</span>' +
+          '</div>' +
+          '<div style="width:10px;height:10px;background:#fff;border-right:1px solid #E7EAF0;border-bottom:1px solid #E7EAF0;transform:translateX(calc(-50% - ' + off + 'px)) rotate(45deg);margin:-6px auto 0;position:relative;left:50%;"></div>' +
+        '</div>';
+      var icon = L.divIcon({ html: html, className: '', iconSize: [0, 0], iconAnchor: [0, 0] });
+      L.marker(center, { icon: icon, interactive: false, keyboard: false }).addTo(this.pinLayer);
+    });
+
+    this.flashLayer.clearLayers();
+    if (flashAxis) {
+      var meta2 = window.BIO.AXES[flashAxis];
+      var ring = L.divIcon({
+        html: '<div style="width:54px;height:54px;border-radius:50%;background:' + meta2.color + '33;border:2px solid ' + meta2.color + ';transform:translate(-50%,-50%);animation:bmPulse 1.4s ease-out 2;"></div>',
+        className: '', iconSize: [0, 0], iconAnchor: [0, 0]
+      });
+      L.marker(center, { icon: ring, interactive: false }).addTo(this.flashLayer);
+      setTimeout(() => { if (this.flashLayer) this.flashLayer.clearLayers(); }, 3000);
+    }
+  }
+
+  // ---------- form ----------
+  tonsNum() { var n = parseFloat(this.state.form.tons); return isNaN(n) ? 0 : n; }
+  previewGwh() { return window.BIO ? window.BIO.feedstockGwh(this.state.form.feedstock, this.tonsNum()) : 0; }
+  setFormFeedstock(id) { this.setState({ form: Object.assign({}, this.state.form, { feedstock: id }) }); }
+  setFormDistrito(v) { this.setState({ form: Object.assign({}, this.state.form, { distrito: v }) }); }
+  setFormTons(val) { this.setState({ form: Object.assign({}, this.state.form, { tons: val }) }); }
+
+  persist(sources) {
+    var u = sources.filter(function (s) { return s.origin === 'user'; })
+      .map(function (s) { return { id: s.id, feedstock: s.feedstock, tons: s.tons, distrito: s.distrito, local: s.local }; });
+    try { localStorage.setItem('biometano_user_sources_v2', JSON.stringify(u)); } catch (e) {}
+  }
+
+  showToast(msg) {
+    if (this._toastT) clearTimeout(this._toastT);
+    this.setState({ toast: msg });
+    this._toastT = setTimeout(() => this.setState({ toast: null }), 3200);
+  }
+
+  submitForm() {
+    var f = this.state.form, BIO = window.BIO;
+    var gwh = this.previewGwh();
+    var fs = BIO.feedstockById(f.feedstock);
+    if (!f.distrito || !fs || gwh <= 0) return;
+    var rec = { id: 'u' + Date.now(), axis: fs.axis, distrito: f.distrito, feedstock: f.feedstock,
+      local: fs.label, tons: this.tonsNum(), gwh: gwh, fonte: 'Introduzido', origin: 'user' };
+    var sources = this.state.sources.concat([rec]);
+    this.persist(sources);
+    this.setState({ sources: sources, form: Object.assign({}, f, { tons: '' }) }, () => {
+      this._agg = this.agg();
+      this.selectDistrict(f.distrito, { zoom: true, flash: fs.axis });
+      this.showToast('+' + this.gwhLabel(gwh) + ' GWh/ano · ' + fs.label + ' em ' + f.distrito);
+    });
+  }
+
+  resetUserData() {
+    var sources = this.state.sources.filter(function (s) { return s.origin !== 'user'; });
+    try { localStorage.removeItem('biometano_user_sources_v2'); localStorage.removeItem('biometano_user_sources_v1'); } catch (e) {}
+    this.setState({ sources: sources });
+    this.showToast('Dados introduzidos removidos.');
+  }
+
+  toggleAxis(id) {
+    var a = Object.assign({}, this.state.activeAxes); a[id] = !a[id];
+    this.setState({ activeAxes: a });
+  }
+  resetFilter() { this.setState({ activeAxes: { RSU: true, AGRO: true, ETAR: true } }); }
+
+  // ---------- chrome actions ----------
+  scrollToForm() {
+    if (this._panelEl && this._formEl) this._panelEl.scrollTo({ top: this._formEl.offsetTop - 12, behavior: 'smooth' });
+  }
+  scrollToEl(el) { if (this._panelEl && el) this._panelEl.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); }
+
+  exportCSV() {
+    var BIO = window.BIO, a = this.agg();
+    var rows = [['Distrito', 'NUT_II', 'RSU_GWh_ano', 'Agropecuario_GWh_ano', 'ETAR_GWh_ano', 'Total_GWh_ano']];
+    BIO.DISTRICTS.slice().sort().forEach(function (d) {
+      var o = a.by[d];
+      rows.push([d, BIO.NUT2[d], o.byAxis.RSU.toFixed(3), o.byAxis.AGRO.toFixed(3), o.byAxis.ETAR.toFixed(3), o.total.toFixed(3)]);
+    });
+    rows.push(['TOTAL', '', a.axisTot.RSU.toFixed(3), a.axisTot.AGRO.toFixed(3), a.axisTot.ETAR.toFixed(3), a.total.toFixed(3)]);
+    var csv = rows.map(function (r) { return r.join(';'); }).join('\n');
+    try {
+      var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url; link.download = 'biometano_potencial_distritos.csv';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      this.showToast('Dados exportados em CSV.');
+    } catch (e) { this.showToast('Não foi possível exportar.'); }
+  }
+
+  // ---------- render ----------
+  renderVals() {
+    var BIO = window.BIO; if (!BIO) return {};
+    var st = this.state, a = this.agg(); this._agg = a;
+    var ramp = this.rampFor();
+    var sel = st.selected;
+    var accent = this.accent(), accPair = this.accentPair();
+    var f1 = (v) => this.gwhLabel(v);
+
+    // KPIs
+    var kpiTotal = this.fmt(a.total, 1), kpiWith = a.withData;
+    var kpiLeader = a.leader || '—', kpiLeaderVal = a.leader ? f1(a.leaderVal) : '';
+
+    // sidebar nav
+    var navBase = "display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:none;background:transparent;border-radius:11px;padding:11px 12px;cursor:pointer;font:600 13.5px 'Hanken Grotesk';color:#7B8398;transition:all .12s;";
+    var navActive = "background:#EEF0FA;color:#2A3D8E;box-shadow:inset 3px 0 0 #2A3D8E;";
+    var mkNav = (active, fn) => ({ style: navBase + (active ? navActive : ''), onClick: fn });
+    var nav = {
+      heatmap: mkNav(true, () => { this.selectDistrict(null); this.fitPT(); }),
+      feedstock: mkNav(false, () => this.scrollToForm()),
+      regional: mkNav(false, () => this.scrollToEl(this._panelEl ? this._panelEl.querySelector('section:nth-of-type(3)') : null))
+    };
+
+    // feedstock cards (scope-aware value + filter toggle)
+    var scope = sel ? (a.by[sel] ? a.by[sel].byAxis : { RSU: 0, AGRO: 0, ETAR: 0 }) : a.axisTot;
+    var mkCard = (id) => {
+      var on = st.activeAxes[id], m = BIO.AXES[id];
+      return {
+        val: f1(scope[id]),
+        onClick: () => this.toggleAxis(id),
+        activeCss: on ? ('border-color:' + m.color + '55;background:' + m.tint + ';') : 'opacity:.5;filter:grayscale(.5);'
+      };
+    };
+    var cards = { rsu: mkCard('RSU'), agro: mkCard('AGRO'), etar: mkCard('ETAR') };
+    var feedScope = sel ? (' · ' + sel) : '';
+    var allOn = st.activeAxes.RSU && st.activeAxes.AGRO && st.activeAxes.ETAR;
+    var filterLinkLabel = allOn ? 'Filtro ativo' : 'Repor filtro';
+    var filterLinkStyle = "border:none;background:none;cursor:pointer;font:600 11px 'Hanken Grotesk';padding:2px 4px;color:" + (allOn ? '#A4ABBC' : accent) + ";";
+
+    // composição nacional
+    var overviewAxes = BIO.AXIS_ORDER.map((id) => {
+      var m = BIO.AXES[id], v = a.axisTot[id];
+      return { comp: m.comp, color: m.color, val: f1(v),
+        pct: a.total > 0 ? Math.round(v / a.total * 100) : 0,
+        barStyle: 'height:100%;border-radius:5px;background:' + m.color + ';width:' + (a.total > 0 ? (v / a.total * 100) : 0) + '%;' };
+    });
+
+    // selected detail
+    var selRegion = '', selTotal = '', selRecords = [], selCount = 0;
+    if (sel) {
+      selRegion = (BIO.NUT2[sel] || '') + ' · distrito';
+      var so = a.by[sel] || { total: 0, records: [] };
+      selTotal = f1(so.total);
+      selCount = so.records.length;
+      selRecords = so.records.slice().sort((x, y) => y.gwh - x.gwh).map((r) => {
+        var m = BIO.AXES[r.axis], isUser = r.origin === 'user';
+        return { color: m.color, local: r.local || r.distrito, meta: m.short + ' · ' + r.fonte, val: f1(r.gwh), isUser: isUser,
+          bg: isUser ? '#F2F8F5' : '#FFFFFF', border: isUser ? '#CCE7DC' : '#EEF0F5',
+          onRemove: () => { var sources = st.sources.filter((s) => s.id !== r.id); this.persist(sources); this.setState({ sources: sources }); } };
+      });
+    }
+
+    // ranking
+    var ranked = BIO.DISTRICTS.map((d) => ({ name: d, total: a.by[d].total })).filter((x) => x.total > 0).sort((x, y) => y.total - x.total);
+    var ranking = ranked.map((x, i) => {
+      var isSel = x.name === sel;
+      return { rank: (i + 1), name: x.name, val: f1(x.total),
+        onClick: () => this.selectDistrict(isSel ? null : x.name, { zoom: true }),
+        rowStyle: "display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;border:none;border-radius:9px;padding:7px 9px;transition:background .12s;background:" + (isSel ? '#EFF1FB' : 'transparent') + ';',
+        barStyle: 'display:block;height:100%;border-radius:5px;background:' + (this.colorFor(x.total, a.max, ramp) || '#cfd6e0') + ';width:' + (x.total / a.max * 100) + '%;' };
+    });
+    var noData = 18 - ranked.length;
+    var rankingFoot = noData > 0 ? ('+ ' + noData + ' distritos ainda sem dados') : 'Todos os distritos têm dados';
+
+    // legend
+    var legendGradient = 'linear-gradient(90deg,' + ramp.join(',') + ')';
+    var legendMax = a.max > 0 ? this.fmt(a.max, 0) : '—';
+    var bmOn = st.showBasemap;
+    var basemapTrackStyle = "position:relative;width:38px;height:21px;border-radius:11px;border:none;cursor:pointer;transition:background .15s;padding:0;background:" + (bmOn ? accent : '#D7DCE6') + ';';
+    var basemapKnobStyle = "position:absolute;top:2.5px;left:" + (bmOn ? '19px' : '2.5px') + ";width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.25);";
+
+    // FAB
+    var fabStyle = "position:absolute;right:34px;bottom:34px;z-index:600;width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg," + accPair[1] + "," + accPair[0] + ");box-shadow:0 10px 26px " + accPair[0] + "66;";
+
+    // form
+    var districtOptions = BIO.DISTRICTS.slice().sort((x, y) => x.localeCompare(y, 'pt')).map((d) => ({ name: d }));
+    var feedstockGroups = BIO.FS_GROUPS.map((g) => ({ label: g.label, items: BIO.FEEDSTOCKS.filter((f) => f.group === g.id).map((f) => ({ id: f.id, label: f.label })) }));
+    var fs = BIO.feedstockById(st.form.feedstock) || BIO.FEEDSTOCKS[0];
+    var fsAxisMeta = BIO.AXES[fs.axis];
+    var fsAxisChipStyle = "display:inline-flex;align-items:center;gap:6px;font:700 11px 'Hanken Grotesk';color:" + fsAxisMeta.color + ";background:" + fsAxisMeta.tint + ";border-radius:20px;padding:4px 11px 4px 9px;";
+    var fsAxisDotStyle = 'width:8px;height:8px;border-radius:3px;background:' + fsAxisMeta.color + ';';
+    var formStep = fs.unit === 't MS/ano' ? 500 : 1000;
+    var formPh = fs.unit === 't MS/ano' ? 'ex: 4 000' : 'ex: 20 000';
+    var biogasM3 = BIO.feedstockBiogasM3(fs.id, this.tonsNum());
+    var preview = this.previewGwh();
+    var valid = !!st.form.distrito && preview > 0;
+    var factorNote = (biogasM3 > 0 ? '≈ ' + this.fmtInt(biogasM3 / 1000) + ' mil m³ biogás · ' : '') + fs.m3PerTon.toFixed(fs.m3PerTon < 10 ? 2 : 1) + ' m³/t · CH₄ ' + Math.round(fs.ch4 * 100) + '%';
+
+    return {
+      ready: st.ready, accent: accent,
+      kpiTotal: kpiTotal, kpiWith: kpiWith, kpiLeader: kpiLeader, kpiLeaderVal: kpiLeaderVal,
+      mapRef: this.mapRef, panelRef: this.panelRef, formRef: this.formRef,
+      nav: nav, onExport: () => this.exportCSV(), onSoon: () => this.showToast('Secção em breve.'),
+      selected: sel, notSelected: !sel,
+      deselect: () => this.selectDistrict(null),
+      cards: cards, feedScope: feedScope,
+      onResetFilter: () => this.resetFilter(), filterLinkLabel: filterLinkLabel, filterLinkStyle: filterLinkStyle,
+      overviewAxes: overviewAxes,
+      selRegion: selRegion, selTotal: selTotal, selRecords: selRecords, selCount: selCount,
+      ranking: ranking, rankingFoot: rankingFoot,
+      legendGradient: legendGradient, legendMax: legendMax,
+      onToggleBasemap: () => this.setState({ showBasemap: !this.state.showBasemap }),
+      basemapTrackStyle: basemapTrackStyle, basemapKnobStyle: basemapKnobStyle,
+      fabStyle: fabStyle, onAddShortcut: () => this.scrollToForm(),
+      districtOptions: districtOptions, feedstockGroups: feedstockGroups,
+      formFeedstock: st.form.feedstock, onPickFeedstock: (e) => this.setFormFeedstock(e.target.value),
+      fsAxisChipStyle: fsAxisChipStyle, fsAxisDotStyle: fsAxisDotStyle, fsAxisLabel: fsAxisMeta.label,
+      formUnit: fs.unit, formStep: formStep, formPh: formPh,
+      formTons: st.form.tons, formDistrito: st.form.distrito,
+      onPickDistrito: (e) => this.setFormDistrito(e.target.value), onTonsInput: (e) => this.setFormTons(e.target.value),
+      formPreview: f1(preview), formPreviewColor: valid ? accent : '#B9C0CE', formFactorNote: factorNote,
+      submitForm: () => this.submitForm(),
+      submitLabel: valid ? 'Adicionar dados ao mapa' : 'Preencha distrito e quantidade',
+      submitStyle: "width:100%;margin-top:15px;border:none;border-radius:12px;padding:14px;font:700 14px 'Hanken Grotesk';cursor:" + (valid ? 'pointer' : 'not-allowed') + ";transition:all .12s;color:#fff;background:" + (valid ? '#2A3D8E' : '#B9C0CE') + ";box-shadow:" + (valid ? '0 8px 20px rgba(42,61,142,.26)' : 'none') + ';',
+      hasUserData: st.sources.some((s) => s.origin === 'user'),
+      resetUserData: () => this.resetUserData(),
+      toast: st.toast, updated: BIO.updated
+    };
+  }
+}
+</script>
+</body>
+</html>
