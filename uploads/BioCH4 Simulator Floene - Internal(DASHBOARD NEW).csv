@@ -1,0 +1,46 @@
+,,,,Biomethane Simulator,,,User can change,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,Last update: 02/07/2024,,,Do not change,,,,,,Biogas Production,,,Revenues,,,,Economical Analysis,,,,Economical Analysis,,,,,,,,
+,,,,,,,WIP,,,,,,217989.38,m3/y,,Digestate,70.33,k€/y,,CAPEX,667.24,k€/y,,Payback,22,y,,,,,,
+,,,,,,,,,,,,,Biomethane Production,,,CO2,0.00,k€/y,,OPEX,133.52,k€/y,,IRR,-11.0%,%,,,,,,
+,USER INTERFACE,,,,,,,,,,,,1493.31,MWh/y,,Biomethane,94.44,k€/y,,,,,,NPV,-487.135,k€,,,,,,
+,,,,,,,,,,,,,0.17,MW,,TOTAL,164.77,k€/y,,,,,,,,,,,,,,
+,,Scenario,,Best Case,,Feedstock Inputs,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,Tons/year,,,,Biowatt Model Addition,,,,,,,,,,,,,,,,,,,
+,,Project Term (years),,20,,Livestock,Cattle,Dairy or Breeding,0,,,,,,,,,,,,,,,,,,,,Sold to Farmers,,,
+,,Asset Depreciation Term,,20,,,,Fattening Calves and Heifers,0,,,,,,,,,,,,,Liquid Fraction,,WWTP,,Storage Silos,,,WIP,,,
+,,Start of Construction,,2025,,,Pigs,,0,,,,,El. Export,,MWh/year,,,,,,,,,,,,Sales Price,,€/ton,,
+,,Start of Operation,,2026,,,Poultry,Layers or Chickens,0,,,,,,,,,,,,,,,,,,,Volume Sold,,ton,,
+,,Technology,,Wet,,,,Ducks,0,,,,,Heat Export,,MWh/year,,,,,,,,,,,,Income,,€,,
+,,Plant Size for Rental (hec),,,,,,Turkeys,0,,,,,,,,,,,,,Decantation,,,,,,,,,,
+,,Rent Price €/hec,,0,,,Equines,,0,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,Sheeps,,0,,,,,,,,,Storage Laggon,,Raw Digestate,,,,,,,,,,,,
+,,Economics,,,,,Goats,,0,,,,,,,,,,,,,,,,,,,,,,,
+,,Dsicount Rate,,11%,,,,,,,,,,,,,CAPEX,,€/m3,,,,,,,,,,,,,
+,,,,,,Agricultural Crops,"Wheat straw, barley, triticale, rye and winter cereals, oats and spring cereals, other cereal grains",,0,,,,,Biogas,,m3/year,,WIP,,,,,,,,,,Sales Price,40,€/ton,,
+,,Biogas Usage,,,,,Corn Straw,,0,,,,Boiler,CAPEX,,€/MWh,,,,,,,,,,,,Volume Sold,"1,723.89",ton/year,,
+,,Self Consumption,,Yes,,,Rice Straw,,0,,,,,OPEX,,€/MWh,,,,,,Solid Fraction,,,,,Digestate Sales,Income,70.3,€/year,,
+,,,%,0,,,Sorghum Straw,,0,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,Winemaking by-products (stems and lees),,0,,,,,,&,,,,,,,,,,,,,,,,,
+,,CHP,,No,,,,,,,,,,,,,,,,,,CO2,,,,,,,,Sales Price,40,€/ton
+,,Boiler,,No,,Agroindustrial Waste,Meat and Fish Industry (raw materials and llamas),,0,,,,,Biogas,,m3/year,,,,,,,,,,,,,,Volume Sold,207.64,ton/y
+,,,,,,,Milk and Dairy Products,Serum,0,,,,CHP,CAPEX,,€/MWh,,,,,,CO2 Recovery System,,,,,,,,Income,0.00,k€/y
+,,Grid Injection,,Yes,,,,Lamas,0,,,,,OPEX,,€/MWh,,,,,,,,,,,,,CO2 Sales,,,
+,,,km to the grid*,1,,,,Dairy and other raw materials,0,,,,,,,,,,,,CO2,207.64,ton/year,,,,,,,,,
+,,,"*If you are not sure, write 1",,,,Olive Oil,Olive Pomace,0,,,,,,,,,,,,CAPEX,0,€/ton,,,,,,,,,
+,,,,,,,,Ruddy Waters,0,,,,,,,,,,,,OPEX,0,€/ton,,,,,,,,,
+,,Income Preferences,,,,,Alcoholic Beverages,Bagasse from the brewing industry,0,,,,,,,,,,,,,,,,,,,,,Sales Price,62,€/MWh
+,,Digestate Sales,,Yes,,,,Cider industry raw materials,0,,,,,,,,,,,,,,,,,,,,,Energy Sold,1493.31,MWh
+,,,€/ton,40,,,Fruits and Vegetables,Citrus (surplus and non-compliant),0,,,,,,,,,,,,,,,,,,,,,Income,94.44,k€/y
+,,,,,,,,Non-citrus fruits (surplus and non-compliant),0,,,,,,,,,,,,,,,,,,,,,,,
+,,CO2 Sales,,No,,,,Vegetable products (surplus and non-compliant),0,,,,Feedstock,,,,Biodigestor,,,Upgrading Unit,,,Connection to Grid,,,M&I Station,,,Biomethane,Self-Consumption,0,MWh
+,,,€/ton,40,,,,Tubers (surplus and non-compliant),0,,,,,,,,,,,,,,,,,,,,Sales,,,
+,,,,,,,Processing Industry,Citrus transformation,0,,,Quantity,#REF!,ton/y,,Quantity in Biodigesters,"10,000",ton/y,Biogas,"217,989",m3/y,Length,1,km,Injection Capacity,"113,096",m3/y,,,,,
+,,BioCH4 €/MWh,,62,,,,Processing of non-citrus fruits,0,,,,,,,Fresh Feed,"9,500",ton/y,,,,,,,,,,,,,,
+,,,"if ""other""",88,,,,Processing of vegetable products,0,,,,,,,,,,,,,,,,,,,,,,WIP,
+,,,,,,,,Tuber processing,0,,,OPEX,59732.4,€/MWh,,CAPEX,80638.74,€/MWh,CAPEX,"16,426",€/MW,CAPEX,"165,000",€/km,CAPEX,"390,000",€,,,Income,,€/y
+,,Guarantees of Origin,,No,,,,Sludge from vegetable processing,0,,,,,,,OPEX,53759.16,€/MWh,OPEX,811.02,€/MW,,,,OPEX,4018.94,€/MW,,Biomethane,,,
+,,,€/MWh,0,,,Glycerin,,0,,,,,,,,,,,,,,,,,,,,Certificates,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,Urban Wastes,Organic fraction of Municipal Solid Waste,,20000,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
