@@ -289,20 +289,10 @@
           <label style="display:block;font:600 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Distrito</label>
           <select onChange="{{ onPickDistrito }}" value="{{ formDistrito }}" style="width:100%;appearance:none;background:#FFFFFF url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M2 4l4 4 4-4%22 fill=%22none%22 stroke=%22%23717A8C%22 stroke-width=%221.6%22/></svg>') no-repeat right 13px center;border:1px solid #DDE2EC;border-radius:11px;padding:12px 34px 12px 14px;font:600 13px 'Hanken Grotesk';color:#1C2438;cursor:pointer;margin-bottom:14px;">
             <option value="" disabled>Selecionar distrito…</option>
-            <sc-for list="{{ districtOptions }}" as="o" hint-placeholder-count="6">
-              <option value="{{ o.name }}">{{ o.name }}</option>
-            </sc-for>
           </select>
 
           <label style="display:block;font:600 10.5px 'Hanken Grotesk';color:#717A8C;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Tipo de feedstock</label>
           <select onChange="{{ onPickFeedstock }}" value="{{ formFeedstock }}" style="width:100%;appearance:none;background:#FFFFFF url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M2 4l4 4 4-4%22 fill=%22none%22 stroke=%22%23717A8C%22 stroke-width=%221.6%22/></svg>') no-repeat right 13px center;border:1px solid #DDE2EC;border-radius:11px;padding:12px 34px 12px 14px;font:600 13px 'Hanken Grotesk';color:#1C2438;cursor:pointer;margin-bottom:12px;">
-            <sc-for list="{{ feedstockGroups }}" as="g" hint-placeholder-count="5">
-              <optgroup label="{{ g.label }}">
-                <sc-for list="{{ g.items }}" as="o" hint-placeholder-count="4">
-                  <option value="{{ o.id }}">{{ o.label }}</option>
-                </sc-for>
-              </optgroup>
-            </sc-for>
           </select>
 
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
@@ -429,6 +419,35 @@ class Component extends DCLogic {
     if (prevProps && prevProps.mapaBase !== this.props.mapaBase) this.setState({ showBasemap: !!this.props.mapaBase });
     if (prevState && prevState.showBasemap !== this.state.showBasemap) this.syncBasemap();
     if (prevState && (prevState.sources !== this.state.sources || prevState.activeAxes !== this.state.activeAxes)) this.applyData();
+    this.populateSelects();
+  }
+
+  // Browser strips <sc-for> from inside <select>, so we inject <option>s directly.
+  populateSelects() {
+    var el = this._formEl, BIO = window.BIO;
+    if (!el || !BIO) return;
+    var sels = el.querySelectorAll('select');
+    var distSel = sels[0], fsSel = sels[1];
+    if (distSel && !distSel._populated) {
+      distSel._populated = true;
+      BIO.DISTRICTS.slice().sort(function(a, b) { return a.localeCompare(b, 'pt'); }).forEach(function(d) {
+        var o = document.createElement('option'); o.value = d; o.textContent = d;
+        distSel.appendChild(o);
+      });
+    }
+    if (fsSel && !fsSel._populated) {
+      fsSel._populated = true;
+      BIO.FS_GROUPS.forEach(function(g) {
+        var og = document.createElement('optgroup'); og.label = g.label;
+        BIO.FEEDSTOCKS.filter(function(f) { return f.group === g.id; }).forEach(function(f) {
+          var o = document.createElement('option'); o.value = f.id; o.textContent = f.label;
+          og.appendChild(o);
+        });
+        fsSel.appendChild(og);
+      });
+    }
+    if (distSel) distSel.value = this.state.form.distrito || '';
+    if (fsSel) fsSel.value = this.state.form.feedstock || 'ofmsw';
   }
 
   mapRef(el) { this._mapEl = el; }
