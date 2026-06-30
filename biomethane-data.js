@@ -105,84 +105,75 @@
   });
 
   /* ----------------------------------------------------------------------
-     FEEDSTOCK TAXONOMY + CONVERSION — Simulador BioCH4 Floene/Biowatt
+     FEEDSTOCK TAXONOMY + CONVERSION — BioCH4 Simulator Floene (xlsm)
      ----------------------------------------------------------------------
-     Cadeia (igual ao simulador):  t/ano → biogás (m³/ano) → biometano (MWh/ano)
-       biogás   = toneladas × rendimento específico (m³ biogás / t)
-       biometano(MWh) = biogás × %CH4 × 9,97 kWh/m³ ÷ 1000
+     Feedstock options and labels match the BioCH4 Simulator Excel exactly.
+     Conversion factors (mwhPerTon) from sheet "Technical Assessment" of
+     BioCH4 Simulator Floene - Internal.xlsm (source: AEBIG).
+     Chain: fresh tons/year → biogas (m³/year) → biomethane (MWh/year).
+     Reference scenario: Pigs 9 500 t/y → 217 989 m³ biogas → 1 493.31 MWh/y
+       (= 9 500 × 0.15719 MWh/t). */
+  var KWH_PER_M3_CH4 = 9.97;
 
-     Calibração: o CSV do simulador expõe um único cenário —
-       20 000 t de fração orgânica de RSU → 217 989 m³ biogás → 1493,31 MWh.
-     A constante CALIB ajusta os rendimentos de literatura (KTBL/FNR, IEA
-     Bioenergy) a essa eficiência de processo, reproduzindo o cenário exacto.
-     Os restantes feedstocks usam rendimentos documentados × CALIB; os valores
-     podem ser substituídos pela tabela interna do simulador quando disponível. */
-  var KWH_PER_M3_CH4 = 9.97;       // PCI do metano
-  var CALIB = 0.0991;              // ≈ 10,90 / 110  (ancorado ao cenário OFMSW do simulador)
-
-  // group → eixo do mapa (RSU / AGRO / ETAR) + unidade de entrada
+  // group → map axis (RSU / AGRO) + input unit. Categories match BioCH4 Simulator.
   var FS_GROUPS = [
-    { id: 'PEC',  axis: 'AGRO', label: 'Pecuária — efluentes',          unit: 't/ano' },
-    { id: 'AGRIC',axis: 'AGRO', label: 'Culturas agrícolas — resíduos', unit: 't/ano' },
-    { id: 'AGRIND',axis:'AGRO', label: 'Agroindustrial — resíduos',     unit: 't/ano' },
-    { id: 'RSU',  axis: 'RSU',  label: 'Resíduos urbanos (RSU)',        unit: 't/ano' },
-    { id: 'ETAR', axis: 'ETAR', label: 'ETAR — lamas',                  unit: 't MS/ano' }
+    { id: 'PEC',   axis: 'AGRO', label: 'Livestock',            unit: 't/ano' },
+    { id: 'AGRIC', axis: 'AGRO', label: 'Agricultural Crops',   unit: 't/ano' },
+    { id: 'AGRIND',axis: 'AGRO', label: 'Agroindustrial Waste', unit: 't/ano' },
+    { id: 'RSU',   axis: 'RSU',  label: 'Urban Wastes',         unit: 't/ano' }
   ];
 
-  // litM3 = rendimento de biogás de literatura (m³ / t matéria fresca); ch4 = fração de metano.
-  // m3PerTon (opcional) = rendimento final já fixado, sem aplicar CALIB (usado nas lamas de ETAR, base seca).
+  // mwhPerTon: MWh of biomethane per fresh ton (from Technical Assessment sheet).
+  // ch4: methane fraction in biogas (used to derive displayed m³ biogas estimate).
   var FEEDSTOCKS_RAW = [
-    // ---- Pecuária (Livestock) ----
-    { id: 'bov_leite',   group: 'PEC', label: 'Bovinos — leite / criação',        litM3: 25,  ch4: 0.55 },
-    { id: 'bov_engorda', group: 'PEC', label: 'Bovinos — engorda',                litM3: 28,  ch4: 0.55 },
-    { id: 'suinos',      group: 'PEC', label: 'Suínos',                           litM3: 28,  ch4: 0.60 },
-    { id: 'aves_galin',  group: 'PEC', label: 'Aves — galinhas / poedeiras',      litM3: 80,  ch4: 0.60 },
-    { id: 'aves_patos',  group: 'PEC', label: 'Aves — patos',                     litM3: 70,  ch4: 0.60 },
-    { id: 'aves_perus',  group: 'PEC', label: 'Aves — perus',                     litM3: 75,  ch4: 0.60 },
-    { id: 'equinos',     group: 'PEC', label: 'Equídeos',                         litM3: 22,  ch4: 0.55 },
-    { id: 'ovinos',      group: 'PEC', label: 'Ovinos',                           litM3: 30,  ch4: 0.55 },
-    { id: 'caprinos',    group: 'PEC', label: 'Caprinos',                         litM3: 30,  ch4: 0.55 },
-    // ---- Culturas agrícolas (Agricultural Crops) ----
-    { id: 'palha_cer',   group: 'AGRIC', label: 'Palha de cereais de inverno',    litM3: 250, ch4: 0.53 },
-    { id: 'palha_milho', group: 'AGRIC', label: 'Palha de milho',                 litM3: 220, ch4: 0.53 },
-    { id: 'palha_arroz', group: 'AGRIC', label: 'Palha de arroz',                 litM3: 200, ch4: 0.53 },
-    { id: 'palha_sorgo', group: 'AGRIC', label: 'Palha de sorgo',                 litM3: 210, ch4: 0.53 },
-    { id: 'vinicola',    group: 'AGRIC', label: 'Subprodutos vinícolas (engaço e borras)', litM3: 260, ch4: 0.55 },
-    // ---- Agroindustrial (Agroindustrial Waste) ----
-    { id: 'carne_peixe', group: 'AGRIND', label: 'Indústria de carne e pescado',  litM3: 120, ch4: 0.62 },
-    { id: 'soro',        group: 'AGRIND', label: 'Lacticínios — soro de leite',   litM3: 55,  ch4: 0.58 },
-    { id: 'lamas_lact',  group: 'AGRIND', label: 'Lacticínios — lamas',           litM3: 50,  ch4: 0.60 },
-    { id: 'lact_outros', group: 'AGRIND', label: 'Lacticínios — outras matérias', litM3: 60,  ch4: 0.58 },
-    { id: 'bagaco_azt',  group: 'AGRIND', label: 'Azeite — bagaço de azeitona',   litM3: 100, ch4: 0.55 },
-    { id: 'aguas_rucas', group: 'AGRIND', label: 'Azeite — águas russas',         litM3: 35,  ch4: 0.60 },
-    { id: 'dreche',      group: 'AGRIND', label: 'Bebidas — dreche cervejeira',   litM3: 120, ch4: 0.58 },
-    { id: 'sidra',       group: 'AGRIND', label: 'Bebidas — matérias da sidra',   litM3: 90,  ch4: 0.58 },
-    { id: 'citrinos',    group: 'AGRIND', label: 'Frutas/hortícolas — citrinos',  litM3: 80,  ch4: 0.58 },
-    { id: 'frutos_nc',   group: 'AGRIND', label: 'Frutas/hortícolas — frutos não-citrinos', litM3: 90, ch4: 0.58 },
-    { id: 'horticolas',  group: 'AGRIND', label: 'Frutas/hortícolas — produtos hortícolas', litM3: 70, ch4: 0.58 },
-    { id: 'tuberculos',  group: 'AGRIND', label: 'Frutas/hortícolas — tubérculos', litM3: 95, ch4: 0.58 },
-    { id: 'transf_citr', group: 'AGRIND', label: 'Transformação — citrinos',      litM3: 85,  ch4: 0.58 },
-    { id: 'transf_frut', group: 'AGRIND', label: 'Transformação — frutos',        litM3: 90,  ch4: 0.58 },
-    { id: 'transf_hort', group: 'AGRIND', label: 'Transformação — hortícolas',    litM3: 75,  ch4: 0.58 },
-    { id: 'transf_tub',  group: 'AGRIND', label: 'Transformação — tubérculos',    litM3: 95,  ch4: 0.58 },
-    { id: 'lamas_veg',   group: 'AGRIND', label: 'Lamas de processamento vegetal',litM3: 55,  ch4: 0.60 },
-    { id: 'glicerina',   group: 'AGRIND', label: 'Glicerina',                     litM3: 420, ch4: 0.60 },
-    // ---- Resíduos urbanos (Urban Wastes) — ÂNCORA do simulador ----
-    { id: 'ofmsw',       group: 'RSU', label: 'Fração orgânica de RSU',           litM3: 110, ch4: 0.687 },
-    // ---- ETAR (mantido do dataset Floene; base seca, 300 Nm³/t MS) ----
-    { id: 'lamas_etar',  group: 'ETAR', label: 'Lamas de ETAR',                   m3PerTon: 300, ch4: 0.55 }
+    // ---- Livestock ----
+    { id: 'bov_leite',   group: 'PEC',   label: 'Cattle — Dairy or Breeding',                                                                          ch4: 0.55, mwhPerTon: 0.18075 },
+    { id: 'bov_engorda', group: 'PEC',   label: 'Cattle — Fattening Calves and Heifers',                                                               ch4: 0.55, mwhPerTon: 0.47740 },
+    { id: 'suinos',      group: 'PEC',   label: 'Pigs',                                                                                                ch4: 0.60, mwhPerTon: 0.15719 },
+    { id: 'aves_galin',  group: 'PEC',   label: 'Poultry — Layers or Chickens',                                                                        ch4: 0.60, mwhPerTon: 0.80437 },
+    { id: 'aves_patos',  group: 'PEC',   label: 'Poultry — Ducks',                                                                                     ch4: 0.60, mwhPerTon: 0.50044 },
+    { id: 'aves_perus',  group: 'PEC',   label: 'Poultry — Turkeys',                                                                                   ch4: 0.60, mwhPerTon: 0.80437 },
+    { id: 'equinos',     group: 'PEC',   label: 'Equines',                                                                                              ch4: 0.55, mwhPerTon: 0.56738 },
+    { id: 'ovinos',      group: 'PEC',   label: 'Sheeps',                                                                                               ch4: 0.55, mwhPerTon: 0.53516 },
+    { id: 'caprinos',    group: 'PEC',   label: 'Goats',                                                                                                ch4: 0.55, mwhPerTon: 0.54098 },
+    // ---- Agricultural Crops ----
+    { id: 'palha_cer',   group: 'AGRIC', label: 'Wheat straw, barley, triticale, rye and winter cereals, oats and spring cereals, other cereal grains', ch4: 0.53, mwhPerTon: 1.90786 },
+    { id: 'palha_milho', group: 'AGRIC', label: 'Corn Straw',                                                                                           ch4: 0.53, mwhPerTon: 1.91947 },
+    { id: 'palha_arroz', group: 'AGRIC', label: 'Rice Straw',                                                                                           ch4: 0.53, mwhPerTon: 1.74196 },
+    { id: 'palha_sorgo', group: 'AGRIC', label: 'Sorghum Straw',                                                                                        ch4: 0.53, mwhPerTon: 1.98417 },
+    { id: 'vinicola',    group: 'AGRIC', label: 'Winemaking by-products (stems and lees)',                                                               ch4: 0.55, mwhPerTon: 0.84227 },
+    // ---- Agroindustrial Waste ----
+    { id: 'carne_peixe', group: 'AGRIND',label: 'Meat and Fish Industry (raw materials and llamas)',                                                     ch4: 0.62, mwhPerTon: 0.72992 },
+    { id: 'soro',        group: 'AGRIND',label: 'Milk and Dairy Products — Serum',                                                                      ch4: 0.58, mwhPerTon: 0.11021 },
+    { id: 'lamas_lact',  group: 'AGRIND',label: 'Milk and Dairy Products — Lamas',                                                                      ch4: 0.60, mwhPerTon: 0.33561 },
+    { id: 'lact_outros', group: 'AGRIND',label: 'Milk and Dairy Products — Dairy and other raw materials',                                              ch4: 0.58, mwhPerTon: 0.26268 },
+    { id: 'bagaco_azt',  group: 'AGRIND',label: 'Olive Oil — Olive Pomace',                                                                             ch4: 0.55, mwhPerTon: 0.89497 },
+    { id: 'aguas_rucas', group: 'AGRIND',label: 'Olive Oil — Ruddy Waters',                                                                             ch4: 0.60, mwhPerTon: 0.41177 },
+    { id: 'dreche',      group: 'AGRIND',label: 'Alcoholic Beverages — Bagasse from the brewing industry',                                              ch4: 0.58, mwhPerTon: 0.98645 },
+    { id: 'sidra',       group: 'AGRIND',label: 'Alcoholic Beverages — Cider industry raw materials',                                                   ch4: 0.58, mwhPerTon: 0.77481 },
+    { id: 'citrinos',    group: 'AGRIND',label: 'Fruits and Vegetables — Citrus (surplus and non-compliant)',                                            ch4: 0.58, mwhPerTon: 0.58949 },
+    { id: 'frutos_nc',   group: 'AGRIND',label: 'Fruits and Vegetables — Non-citrus fruits (surplus and non-compliant)',                                 ch4: 0.58, mwhPerTon: 0.79160 },
+    { id: 'horticolas',  group: 'AGRIND',label: 'Fruits and Vegetables — Vegetable products (surplus and non-compliant)',                                ch4: 0.58, mwhPerTon: 0.32451 },
+    { id: 'tuberculos',  group: 'AGRIND',label: 'Fruits and Vegetables — Tubers (surplus and non-compliant)',                                            ch4: 0.58, mwhPerTon: 0.48688 },
+    { id: 'transf_citr', group: 'AGRIND',label: 'Processing Industry — Citrus transformation',                                                          ch4: 0.58, mwhPerTon: 0.39379 },
+    { id: 'transf_frut', group: 'AGRIND',label: 'Processing Industry — Processing of non-citrus fruits',                                                ch4: 0.58, mwhPerTon: 0.29206 },
+    { id: 'transf_hort', group: 'AGRIND',label: 'Processing Industry — Processing of vegetable products',                                               ch4: 0.58, mwhPerTon: 0.28175 },
+    { id: 'transf_tub',  group: 'AGRIND',label: 'Processing Industry — Tuber processing',                                                               ch4: 0.58, mwhPerTon: 0.43532 },
+    { id: 'lamas_veg',   group: 'AGRIND',label: 'Processing Industry — Sludge from vegetable processing',                                               ch4: 0.60, mwhPerTon: 0.30992 },
+    { id: 'glicerina',   group: 'AGRIND',label: 'Glycerin',                                                                                              ch4: 0.60, mwhPerTon: 5.23467 },
+    // ---- Urban Wastes ----
+    { id: 'ofmsw',       group: 'RSU',   label: 'Organic fraction of Municipal Solid Waste',                                                             ch4: 0.53, mwhPerTon: 0.59377 }
   ];
 
-  function fsYield(f) { return f.m3PerTon != null ? f.m3PerTon : f.litM3 * CALIB; } // m³ biogás / t
   var GROUP_BY_ID = {}; FS_GROUPS.forEach(function (g) { GROUP_BY_ID[g.id] = g; });
 
   var FEEDSTOCKS = FEEDSTOCKS_RAW.map(function (f) {
     var g = GROUP_BY_ID[f.group];
-    var m3 = fsYield(f);
+    var m3 = f.mwhPerTon * 1000 / (f.ch4 * KWH_PER_M3_CH4); // derived m³/t for display
     return {
       id: f.id, group: f.group, groupLabel: g.label, axis: g.axis, unit: g.unit,
       label: f.label, m3PerTon: m3, ch4: f.ch4,
-      mwhPerTon: m3 * f.ch4 * KWH_PER_M3_CH4 / 1000   // MWh biometano / t
+      mwhPerTon: f.mwhPerTon
     };
   });
   var FS_INDEX = {}; FEEDSTOCKS.forEach(function (f) { FS_INDEX[f.id] = f; });
