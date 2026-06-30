@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -425,10 +425,10 @@ class Component extends DCLogic {
   componentWillUnmount() { clearInterval(this._poll); if (this._toastT) clearTimeout(this._toastT); if (this._ro) this._ro.disconnect(); }
 
   componentDidUpdate(prevProps, prevState) {
-    if (prevProps.paleta !== this.props.paleta) this.applyData();
-    if (prevProps.mapaBase !== this.props.mapaBase) this.setState({ showBasemap: !!this.props.mapaBase });
-    if (prevState.showBasemap !== this.state.showBasemap) this.syncBasemap();
-    if (prevState.sources !== this.state.sources || prevState.activeAxes !== this.state.activeAxes) this.applyData();
+    if (prevProps && prevProps.paleta !== this.props.paleta) this.applyData();
+    if (prevProps && prevProps.mapaBase !== this.props.mapaBase) this.setState({ showBasemap: !!this.props.mapaBase });
+    if (prevState && prevState.showBasemap !== this.state.showBasemap) this.syncBasemap();
+    if (prevState && (prevState.sources !== this.state.sources || prevState.activeAxes !== this.state.activeAxes)) this.applyData();
   }
 
   mapRef(el) { this._mapEl = el; }

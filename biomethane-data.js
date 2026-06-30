@@ -71,35 +71,35 @@
     'Vila Real': [-7.62, 41.42], 'Viseu': [-7.85, 40.74]
   };
 
-  // Base feedstock records — one pin each. id is stable for de-dupe / removal.
+  // Base records — potencial agregado por distrito (GWh/ano, ref. 2030).
+  // Fonte: Supply_&_Demand_Geolocalizada v.16 (2024), sheet "Oferta Agregada".
   var SEED = [
-    // RSU
-    { axis: 'RSU', distrito: 'Lisboa', local: 'Lisboa', lat: 38.7223, lon: -9.1393, inputs: { residuosUrbanos: 212000, fracaoOrganicaPct: 35 }, fonte: 'INE 2021' },
-    { axis: 'RSU', distrito: 'Porto', local: 'Porto', lat: 41.1579, lon: -8.6291, inputs: { residuosUrbanos: 95000, fracaoOrganicaPct: 33 }, fonte: 'INE 2021' },
-    { axis: 'RSU', distrito: 'Coimbra', local: 'Coimbra', lat: 40.2033, lon: -8.4103, inputs: { residuosUrbanos: 55000, fracaoOrganicaPct: 32 }, fonte: 'INE 2021' },
-    { axis: 'RSU', distrito: 'Setúbal', local: 'Setúbal', lat: 38.5244, lon: -8.8957, inputs: { residuosUrbanos: 36000, fracaoOrganicaPct: 34 }, fonte: 'GPP 2022' },
-    { axis: 'RSU', distrito: 'Faro', local: 'Faro', lat: 37.0194, lon: -7.9322, inputs: { residuosUrbanos: 24000, fracaoOrganicaPct: 30 }, fonte: 'INE 2021' },
-    // Agropecuário e Florestal
-    { axis: 'AGRO', distrito: 'Coimbra', local: 'Coimbra', lat: 40.2033, lon: -8.4103, inputs: { residuosAgro: 18000, residuosFlorestais: 5000 }, fonte: 'APA RARU 2022' },
-    { axis: 'AGRO', distrito: 'Évora', local: 'Évora', lat: 38.5667, lon: -7.9000, inputs: { residuosAgro: 35000, residuosFlorestais: 8000 }, fonte: 'APA RARU 2022' },
-    { axis: 'AGRO', distrito: 'Braga', local: 'Barcelos', lat: 41.5367, lon: -8.6180, inputs: { residuosAgro: 42000, residuosFlorestais: 3000 }, fonte: 'SRIR 2022' },
-    { axis: 'AGRO', distrito: 'Santarém', local: 'Santarém', lat: 39.2369, lon: -8.6881, inputs: { residuosAgro: 26000, residuosFlorestais: 6500 }, fonte: 'GPP 2022' },
-    { axis: 'AGRO', distrito: 'Braga', local: 'Braga', lat: 41.5518, lon: -8.4229, inputs: { residuosAgro: 15000, residuosFlorestais: 2000 }, fonte: 'APA RARU 2022' },
-    // ETAR
-    { axis: 'ETAR', distrito: 'Lisboa', local: 'ETAR Beirolas', lat: 38.7723, lon: -9.0893, inputs: { lamas: 12000 }, fonte: 'Águas de Lisboa' },
-    { axis: 'ETAR', distrito: 'Porto', local: 'ETAR Sul', lat: 41.1100, lon: -8.6400, inputs: { lamas: 6800 }, fonte: 'Águas do Porto' },
-    { axis: 'ETAR', distrito: 'Coimbra', local: 'ETAR Coimbra', lat: 40.1850, lon: -8.4200, inputs: { lamas: 3500 }, fonte: 'AdP — Águas do Centro' },
-    { axis: 'ETAR', distrito: 'Aveiro', local: 'ETAR Cacia', lat: 40.6900, lon: -8.5700, inputs: { lamas: 2800 }, fonte: 'Águas do Centro Litoral' },
-    { axis: 'ETAR', distrito: 'Faro', local: 'ETAR Faro/Olhão', lat: 37.0150, lon: -7.9000, inputs: { lamas: 2200 }, fonte: 'ERSAR RASARP 2022' }
+    { axis: 'AGRO', distrito: 'Aveiro',          local: 'Aveiro',          lat: 40.66, lon: -8.46, gwh: 652.9658,  fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Beja',             local: 'Beja',            lat: 37.97, lon: -7.86, gwh: 62.3712,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Braga',            local: 'Braga',           lat: 41.58, lon: -8.30, gwh: 91.8048,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Bragança',         local: 'Bragança',        lat: 41.66, lon: -6.86, gwh: 28.032,    fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Castelo Branco',   local: 'Castelo Branco',  lat: 39.96, lon: -7.42, gwh: 32.1779,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Coimbra',          local: 'Coimbra',         lat: 40.18, lon: -8.27, gwh: 63.2503,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Faro',             local: 'Faro',            lat: 37.18, lon: -7.95, gwh: 103.5437,  fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Leiria',           local: 'Leiria',          lat: 39.66, lon: -8.70, gwh: 47.1597,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Lisboa',           local: 'Lisboa',          lat: 38.92, lon: -9.10, gwh: 765.71,    fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Portalegre',       local: 'Portalegre',      lat: 39.20, lon: -7.50, gwh: 4.1715,    fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Porto',            local: 'Porto',           lat: 41.18, lon: -8.42, gwh: 108.4265,  fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Santarém',         local: 'Santarém',        lat: 39.30, lon: -8.40, gwh: 49.7414,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Setúbal',          local: 'Setúbal',         lat: 38.42, lon: -8.62, gwh: 230.0613,  fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Viana do Castelo', local: 'Viana do Castelo',lat: 41.85, lon: -8.50, gwh: 106.5216,  fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Vila Real',        local: 'Vila Real',       lat: 41.42, lon: -7.62, gwh: 44.8512,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Viseu',            local: 'Viseu',           lat: 40.74, lon: -7.85, gwh: 57.2885,   fonte: 'Supply & Demand 2024' },
+    { axis: 'AGRO', distrito: 'Évora',            local: 'Évora',           lat: 38.62, lon: -7.74, gwh: 4.2294,    fonte: 'Supply & Demand 2024' }
   ];
 
-  // Materialise seed records: add id + computed gwh.
+  // Materialise seed records: add id + computed gwh (uses s.gwh directly if present).
   var SOURCES = SEED.map(function (s, i) {
     return {
       id: 'seed-' + i,
       axis: s.axis, distrito: s.distrito, local: s.local,
-      lat: s.lat, lon: s.lon, inputs: s.inputs,
-      gwh: gwhOf(s.axis, s.inputs),
+      lat: s.lat, lon: s.lon, inputs: s.inputs || {},
+      gwh: s.gwh != null ? s.gwh : gwhOf(s.axis, s.inputs || {}),
       fonte: s.fonte, origin: 'base'
     };
   });
