@@ -326,7 +326,6 @@
   window.BIO = {
     GWH_PER_NM3: GWH_PER_NM3,
     KWH_PER_M3_CH4: KWH_PER_M3_CH4,
-    CALIB: CALIB,
     AXES: AXES,
     AXIS_ORDER: ['RSU', 'AGRO', 'ETAR'],
     FS_GROUPS: FS_GROUPS,
