@@ -314,6 +314,29 @@
           <button onClick="{{ submitForm }}" style="{{ submitStyle }}">{{ submitLabel }}</button>
           <sc-if value="{{ hasUserData }}" hint-placeholder-val="{{ false }}">
             <button onClick="{{ resetUserData }}" style="width:100%;margin-top:9px;border:none;background:none;color:#9098AC;font:600 12px 'Hanken Grotesk';cursor:pointer;padding:4px;">Repor apenas dados de base</button>
+            <button onClick="{{ onToggleShare }}" style="width:100%;margin-top:6px;border:1.5px solid #C8D0E0;border-radius:11px;background:#F8F9FC;color:#2A3D8E;font:600 13px 'Hanken Grotesk';cursor:pointer;padding:11px;display:flex;align-items:center;justify-content:center;gap:8px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+              Partilhar sessão
+            </button>
+          </sc-if>
+
+          <!-- Share overlay -->
+          <sc-if value="{{ showShare }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;border:1px solid #DDE2EC;border-radius:14px;background:#FFFFFF;padding:16px;display:flex;flex-direction:column;gap:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="font:700 12px 'Hanken Grotesk';color:#1C2438;">Sessão partilhável</div>
+                <button onClick="{{ onToggleShare }}" style="border:none;background:none;color:#9098AC;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;">×</button>
+              </div>
+              <div style="font:500 11px 'Hanken Grotesk';color:#9098AC;">Partilhe este link com colegas para que vejam os mesmos dados no mapa.</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <div style="flex:1;background:#F4F5FA;border-radius:8px;padding:9px 12px;font:500 11px 'IBM Plex Mono';color:#4A5468;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ shareHref }}</div>
+                <button onClick="{{ onCopyUrl }}" style="flex:0 0 auto;border:none;border-radius:9px;background:#2A3D8E;color:#fff;font:700 11.5px 'Hanken Grotesk';cursor:pointer;padding:9px 14px;white-space:nowrap;">Copiar</button>
+              </div>
+              <div style="display:flex;justify-content:center;padding:4px 0;">
+                <img src="{{ qrSrc }}" alt="QR Code" style="width:160px;height:160px;border-radius:8px;border:1px solid #EEF0F5;" />
+              </div>
+              <div style="font:500 10.5px 'Hanken Grotesk';color:#B3BAC8;text-align:center;">Leia o QR code para abrir no telemóvel</div>
+            </div>
           </sc-if>
         </section>
 
@@ -354,7 +377,8 @@ class Component extends DCLogic {
       showBasemap: false,
       form: { distrito: '', feedstock: 'ofmsw', tons: '' },
       toast: null,
-      ready: false
+      ready: false,
+      showShare: false
     };
     this.mapRef = this.mapRef.bind(this);
     this.panelRef = (el) => { this._panelEl = el; };
@@ -404,6 +428,22 @@ class Component extends DCLogic {
       }
       return Object.assign({}, s, { gwh: BIO.gwhOf(s.axis, s.inputs || {}), origin: 'user', fonte: s.fonte || 'Introduzido', local: s.local || ('Entrada · ' + s.distrito) });
     });
+    // Restore from shared URL hash (#share=BASE64)
+    try {
+      var hash = window.location.hash;
+      if (hash.indexOf('#share=') === 0) {
+        var shared = JSON.parse(atob(hash.slice(7)));
+        if (Array.isArray(shared)) {
+          shared.forEach(function(s) {
+            var f = BIO ? BIO.feedstockById(s.f) : null;
+            if (!f || !s.d) return;
+            restored.push({ id: 'sh' + Math.random().toString(36).slice(2), origin: 'user',
+              distrito: s.d, feedstock: s.f, axis: f.axis, tons: Number(s.t) || 0,
+              local: f.label, fonte: 'Partilhado', gwh: BIO.feedstockGwh(s.f, s.t) });
+          });
+        }
+      }
+    } catch(e) {}
     this.setState({ sources: seed.concat(restored), showBasemap: !!this.props.mapaBase, ready: true });
     setTimeout(() => this.populateSelects(), 0);
     this._poll = setInterval(() => {
@@ -623,6 +663,23 @@ class Component extends DCLogic {
     var u = sources.filter(function (s) { return s.origin === 'user'; })
       .map(function (s) { return { id: s.id, feedstock: s.feedstock, tons: s.tons, distrito: s.distrito, local: s.local }; });
     try { localStorage.setItem('biometano_user_sources_v2', JSON.stringify(u)); } catch (e) {}
+    // Sync URL hash so current session is shareable
+    var compact = u.map(function(s) { return { f: s.feedstock, t: s.tons, d: s.distrito }; });
+    try {
+      if (compact.length > 0) {
+        window.location.hash = 'share=' + btoa(JSON.stringify(compact));
+      } else {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    } catch(e) {}
+  }
+
+  shareUrl() { return window.location.href.split('#')[0] + (window.location.hash || ''); }
+
+  copyShareUrl() {
+    var url = this.shareUrl();
+    try { navigator.clipboard.writeText(url).then(() => this.showToast('Link copiado!')); }
+    catch(e) { this.showToast('Copie manualmente: ' + url); }
   }
 
   showToast(msg) {
@@ -812,7 +869,12 @@ class Component extends DCLogic {
       submitStyle: "width:100%;margin-top:15px;border:none;border-radius:12px;padding:14px;font:700 14px 'Hanken Grotesk';cursor:" + (valid ? 'pointer' : 'not-allowed') + ";transition:all .12s;color:#fff;background:" + (valid ? '#2A3D8E' : '#B9C0CE') + ";box-shadow:" + (valid ? '0 8px 20px rgba(42,61,142,.26)' : 'none') + ';',
       hasUserData: st.sources.some((s) => s.origin === 'user'),
       resetUserData: () => this.resetUserData(),
-      toast: st.toast, updated: BIO.updated
+      toast: st.toast, updated: BIO.updated,
+      showShare: st.showShare,
+      onToggleShare: () => this.setState({ showShare: !this.state.showShare }),
+      onCopyUrl: () => this.copyShareUrl(),
+      shareHref: this.shareUrl(),
+      qrSrc: 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(this.shareUrl())
     };
   }
 }
